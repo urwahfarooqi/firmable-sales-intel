@@ -94,7 +94,7 @@ tab1, tab2, tab3 = st.tabs(["Ranked accounts", "Account detail", "How scoring wo
 
 with tab1:
     show = f[["rank", "company", "tier", "score", "top_reasons", "footprint", "servers", "country", "maturity"]]
-    st.dataframe(show.head(1000), use_container_width=True, hide_index=True,
+    st.dataframe(show.head(1000), width="stretch", hide_index=True,
                  column_config={"score": st.column_config.ProgressColumn("score", format="%.0f", min_value=0,
                                                                           max_value=float(df["score"].max() or 1))})
     st.download_button("Download filtered list (CSV)", f.to_csv(index=False), "accounts.csv")
