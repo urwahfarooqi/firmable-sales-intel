@@ -144,5 +144,7 @@ with tab3:
 **Cleaning:** honeypots removed; CDN/WAF edge servers are the provider's, so they only count as maturity;
 ISP home connections (generic reverse DNS) removed; companies identified by domain, else SSL certificate name.
 
-**Tiers:** Hot > 30, Warm 10-30, Low 0-10.
+**Tiers:** Hot = score > 30 **and** direct evidence (verified exploited CVE, exposed RDP/SMB, database, ICS or a
+vulnerable VPN). Warm = 10-30, or > 30 without direct evidence. Low = 0-10. Review = 100+ servers under one domain
+(usually an ISP or hosting network). CVEs only inferred from a software version get half points.
 """)

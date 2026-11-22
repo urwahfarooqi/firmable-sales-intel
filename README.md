@@ -1,6 +1,7 @@
 # Security Need Finder: sales intelligence from internet scan data
 
-**Live app:** {{APP_URL}} (password shared separately)
+**Live app:** https://firmable-sales-intel-zwqxtftinkdkqwgjtgrkvs.streamlit.app/ (password shared separately: the app
+names real companies with real exposures, so it is not left open to the internet. If it shows "wake up", click it - ~30 s.)
 
 A cybersecurity sales team wants to know **which companies need help right now** and **what to say when they call**.
 This project turns one raw internet-scan file (18.2M server banners, 11.7 GB zstd) into a ranked list of
@@ -46,7 +47,9 @@ Per company (registered domain, or SSL certificate name when no domain):
 | Maturity: WAF/CDN -5, security.txt -3, post-quantum TLS -2, HSTS -1 | |
 
 - First hit gets full points; repeats add a little (log), capped at 2x, so 50 cameras do not outweigh one exploited VPN.
-- **Tiers:** Hot > 30 **and at least 2 different kinds of evidence**; Warm 10-30; Low 0-10.
+- CVEs on CISA KEV / ransomware lists that are only *inferred* from a version banner get half points.
+- **Tiers:** Hot > 30 **and direct evidence** (verified KEV, exposed RDP/VNC/SMB, database, ICS or a vulnerable VPN);
+  Warm 10-30 (or > 30 without direct evidence); Low 0-10. 100+ servers under one domain -> "Review".
 - Each company keeps its **top 3 reasons**, footprint (servers seen) and the KEV/ransomware CVE ids.
 - Points are hand-set from how attacks actually start (exploited edge devices, exposed remote access, exposed data).
   With win/loss data from the sales team I would fit these weights instead.
@@ -58,13 +61,37 @@ Per company (registered domain, or SSL certificate name when no domain):
    - Run 1 ranked ISPs first (Spectrum, Orange, Vodafone...) and produced 48K "Hot" companies, 37K of them
      a single server whose only reason was one version-inferred KEV CVE.
    - Fixes: broader reverse-DNS/ISP exclusion, "Hot needs 2+ kinds of evidence", inferred-KEV labelling.
-   - Run 2: {{RUN2_SUMMARY}}
-3. **Spot checks:** manually reviewed the top {{N_SPOT}} Hot accounts against their raw records. {{SPOT_RESULT}}
-4. **Run stats** (`run_stats.txt`) log every record read, skipped and why, so drops are visible, not silent.
+   - Run 2: ISPs gone, but hosting/VPS providers (OVH, GoDaddy, Contabo...) and junk names (`localhost.localdomain`,
+     `in-addr.arpa`) led, and Hot was still 32.5K: 31.9K led with a version-inferred KEV; only 189 companies have a verified one.
+   - So I split ingestion from scoring (`process.py` -> aggregates, `score.py` -> ranking, seconds to re-run) and changed the rules:
+     inferred KEV/ransomware CVEs get half points; **Hot requires direct evidence** (verified KEV, exposed RDP/DB/ICS,
+     vulnerable VPN); hosting/ISP/junk domains excluded; 100+ servers under one domain goes to a "Review" bucket
+     (almost always a network operator).
+3. **Spot check of the final top 25:** mostly universities, schools, small companies and a government IT agency, each with
+   direct evidence. A few small hosting firms still appear (see Limitations).
+4. **Run stats** (`run_stats.txt`, `score_stats.txt`) log every record read, skipped and why, so drops are visible, not silent.
+
+| | Run 1 | Run 2 | Final |
+|---|---|---|---|
+| Top of list | ISPs | Hosting providers | Real organisations with direct evidence |
+| Hot accounts | 48,137 | 32,503 | **1,269** |
 
 ## 5. Results (this file)
 
-{{RESULTS_TABLE}}
+| | |
+|---|---|
+| Records read | 18,214,733 (~22 min, one laptop core) |
+| Dropped: no domain / cert name | 12,919,581 |
+| Dropped: ISP home connections | 2,648,542 |
+| Dropped: honeypots | 246,958 |
+| CDN/WAF edge records (maturity only) | 171,875 |
+| Companies scored | 330,043 (2,049 excluded as ISP / hosting / junk) |
+| **Hot** | **1,269** (median 4 servers) |
+| Warm / Low / No signal | 54,077 / 64,268 / 208,270 |
+| Review (100+ servers, likely network operator) | 340 |
+
+Among Hot accounts: 470 have an exposed database, 376 exposed remote access, 162 a vulnerable/EOL VPN or firewall,
+27 an exposed industrial control system.
 
 ## 6. Scaling to thousands of files a month
 
@@ -81,8 +108,9 @@ Per company (registered domain, or SSL certificate name when no domain):
 - I used **Claude (Claude Code)** as a pair programmer: it wrote the profiling, processing and app code from my
   decisions, and explained unfamiliar security fields.
 - I looked at the data myself first (field coverage, value distributions) and chose the signals from that.
-- **How I knew it was right:** every claim was checked against the data. The first full run looked plausible but
-  was wrong (ISPs at the top, too many Hot); I caught that by reading the results, not by trusting the code.
+- **How I knew it was right:** every claim was checked against the data. The first two full runs looked plausible
+  but were wrong (ISPs, then hosting providers at the top; tens of thousands of "Hot" accounts). We caught that by
+  reviewing the top of each run and the tier counts, not by trusting the code, and fixed the rules each time.
 - **Cost:** the pipeline makes **no LLM API calls**, so scoring 18M records costs only compute (~20 min on a laptop).
   Development used a Claude subscription.
 
@@ -92,7 +120,8 @@ Per company (registered domain, or SSL certificate name when no domain):
 pip install -r requirements.txt zstandard
 python profile.py  firmable.zst 200000   # field coverage
 python profile2.py firmable.zst 200000   # value distributions
-python process.py  firmable.zst          # -> companies.parquet, companies_top.csv, run_stats.txt
+python process.py  firmable.zst          # -> companies_agg.parquet, run_stats.txt   (~22 min)
+python score.py                          # -> companies.parquet, companies_top.csv  (seconds)
 streamlit run app.py
 ```
 The raw data file is not in the repo.
@@ -102,3 +131,6 @@ The raw data file is not in the repo.
 - Company = domain; subsidiaries and multi-domain companies are not merged.
 - No firmographics (industry, headcount): footprint is a rough proxy for size and budget.
 - Weights are expert-set, not trained.
+- Some small hosting/VPS firms still rank high; firmographics (company type) would remove them properly.
+- Most KEV CVEs are inferred from version banners (backported patches can make them false positives);
+  they are labelled as inferred and cannot make an account Hot on their own.
