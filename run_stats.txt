@@ -1,0 +1,10 @@
+run time: 21.7 min
+lines: 18,214,733
+scored records: 2,227,777
+skipped: no domain / cert name: 12,919,581
+skipped: ISP home connection (generic reverse DNS): 2,648,542
+cdn/waf records (risk not scored): 171,875
+skipped: honeypot: 246,958
+companies excluded as ISP / consumer network: 230
+companies: 330,043
+tiers: No signal 208,624, Low 64,641, Hot 32,503, Warm 24,275

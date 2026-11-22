@@ -1,0 +1,4 @@
+companies in: 330,043
+excluded as hosting/ISP/junk domain: 1,819
+companies ranked: 328,224
+tiers: No signal 208,270, Low 64,268, Warm 54,077, Hot 1,269, Review 340

@@ -221,3 +221,19 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- project rules ---
+# raw data - never commit (11+ GB, not ours to redistribute)
+*.zst
+b2_download_file_by_id*
+
+# local outputs / logs
+process_log.txt
+companies_top.csv
+*.pdf
+
+# python
+__pycache__/
+*.pyc
+.venv/
+.streamlit/secrets.toml
